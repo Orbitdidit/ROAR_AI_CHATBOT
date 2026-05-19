@@ -1,15 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
   
   --color-primary: #6E0000;
   --color-primary-dark: #410000;
   --color-charcoal: #252727;
   --color-teal: #317673;
   --color-teal-soft: #b5ede7;
-  --color-surface: #f9f9f9;
+  --color-surface: #fbfcfa;
   --color-surface-low: #f4f3f3;
   --color-surface-lowest: #ffffff;
   --color-surface-highest: #e2e2e2;
@@ -17,6 +18,8 @@
   --radius-academic: 0.5rem;
   --radius-academic-lg: 1rem;
   --radius-academic-xl: 1.5rem;
+  --radius-academic-2xl: 2rem;
+  --radius-academic-3xl: 3rem;
 }
 
 @layer base {
@@ -44,4 +47,16 @@
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-surface-highest rounded-full;
 }

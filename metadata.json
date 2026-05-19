@@ -1,6 +1,6 @@
 {
-  "name": "ROAR AI",
+  "name": "ROAR AI Chatbot",
   "description": "A modern, student-focused AI assistant for Texas Southern University, featuring study tools, support resources, and institutional analytics.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
