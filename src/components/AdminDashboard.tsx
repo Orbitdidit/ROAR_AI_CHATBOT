@@ -4,7 +4,8 @@ import {
   TrendingUp, TrendingDown, Users, BookOpen, MessageSquare, 
   ShieldCheck, Activity, Download, Wrench, Plus, ChevronRight, Settings, 
   Filter, User, BarChart3, Clock, Heart, Search, ChevronDown, Monitor,
-  AlertCircle, Database, X, Trash2, FileText, Link as LinkIcon, Edit3, Check, Phone
+  AlertCircle, Database, X, Trash2, FileText, Link as LinkIcon, Edit3, Check, Phone,
+  Upload
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { UserProfile } from '../types';
@@ -164,6 +165,10 @@ export default function AdminDashboard({ userProfile }: { userProfile: UserProfi
         </div>
         <div className="absolute top-0 right-0 w-64 h-64 bg-teal/[0.02] rounded-full translate-x-1/3 -translate-y-1/2" />
       </div>
+
+      <FacultyUploadPortal userProfile={userProfile} />
+
+      <ResearchUsageTracker />
 
       <div className="bg-white rounded-[3rem] p-8 border border-surface-highest/50 shadow-sm">
         <div className="flex items-center justify-between mb-8">
@@ -395,6 +400,409 @@ function TinyFilter({ label, options, value, onChange }: { label: string, option
       >
         {options.map(o => <option key={o} value={o}>{o}</option>)}
       </select>
+    </div>
+  );
+}
+
+function FacultyUploadPortal({ userProfile }: { userProfile: UserProfile }) {
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [course, setCourse] = useState('MATH 1314 - College Algebra');
+  const [materialType, setMaterialType] = useState('Syllabus');
+  const [facultyName, setFacultyName] = useState(() => {
+    return `${userProfile?.firstName || 'Dr.'} ${userProfile?.lastName || 'Williams'}`.trim();
+  });
+  const [description, setDescription] = useState('');
+  
+  const [upProgress, setUpProgress] = useState<{ [key: string]: number }>({});
+  const [upStatus, setUpStatus] = useState<'idle' | 'uploading' | 'success'>('idle');
+  const [uploadsList, setUploadsList] = useState<any[]>(() => {
+    const raw = localStorage.getItem('roar_faculty_uploads');
+    return raw ? JSON.parse(raw) : [];
+  });
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      const validFiles = files.filter((f: any) => f.size <= 25 * 1024 * 1024); // 25 MB
+      if (validFiles.length < files.length) {
+        alert("Some files exceed the 25 MB size limit and were excluded.");
+      }
+      setSelectedFiles(prev => [...prev, ...validFiles]);
+    }
+  };
+
+  const removeSelectedFile = (idx: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleUploadFiles = () => {
+    if (selectedFiles.length === 0) return;
+    setUpStatus('uploading');
+    
+    // Simulate uploads sequentially
+    let currentIdx = 0;
+    
+    const uploadNext = () => {
+      if (currentIdx >= selectedFiles.length) {
+        // Complete uploads
+        const existingRaw = localStorage.getItem('roar_faculty_uploads');
+        const existing = existingRaw ? JSON.parse(existingRaw) : [];
+        
+        const newUploads = selectedFiles.map((file, idx) => ({
+          id: 'upl-' + (Date.now() + idx),
+          name: file.name,
+          course: course,
+          materialType: materialType,
+          facultyName: facultyName,
+          description: description,
+          uploadedAt: new Date().toISOString(),
+          status: 'Active'
+        }));
+        
+        const updated = [...newUploads, ...existing];
+        localStorage.setItem('roar_faculty_uploads', JSON.stringify(updated));
+        
+        // Update local state list
+        setUploadsList(updated);
+        
+        setUpStatus('success');
+        setSelectedFiles([]);
+        setDescription('');
+        
+        // Reset progress counters
+        setUpProgress({});
+        setTimeout(() => setUpStatus('idle'), 3000);
+        return;
+      }
+
+      const file = selectedFiles[currentIdx];
+      let p = 0;
+      const interval = setInterval(() => {
+        p += 20;
+        setUpProgress(prev => ({ ...prev, [file.name]: p }));
+        if (p >= 100) {
+          clearInterval(interval);
+          currentIdx++;
+          uploadNext();
+        }
+      }, 150);
+    };
+
+    uploadNext();
+  };
+
+  return (
+    <div className="bg-white rounded-[3rem] p-10 border border-surface-highest/50 shadow-sm space-y-8 animate-in fade-in duration-500">
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Database size={20} className="text-primary" />
+            <h3 className="text-2xl font-black text-charcoal font-display">Faculty Source Uploads</h3>
+          </div>
+          <p className="text-charcoal/40 text-xs font-bold leading-relaxed max-w-2xl">
+            Upload course materials students will study from. Files become part of the active source library after approval.
+          </p>
+        </div>
+        <span className="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/5 border border-primary/10 px-2.5 py-1 rounded-full">
+          Faculty Active Link
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="space-y-6">
+          {/* File Drag/Drop or select zone */}
+          <div 
+            onClick={() => fileInputRef.current?.click()}
+            className="border-2 border-dashed border-charcoal/10 rounded-[2rem] p-8 text-center hover:border-primary/30 transition-all hover:bg-surface-low/20 cursor-pointer flex flex-col items-center justify-center gap-4 group"
+          >
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              multiple 
+              onChange={handleFileChange} 
+              accept=".pdf,.pptx,.docx,.txt" 
+              className="hidden" 
+            />
+            <div className="w-12 h-12 rounded-xl bg-primary/5 text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Upload size={20} />
+            </div>
+            <div>
+              <p className="text-xs font-black text-charcoal">Drag and drop course files here, or click to browse</p>
+              <p className="text-[10px] font-bold text-charcoal/30 mt-1">Accepts PDF, PPTX, DOCX, TXT (Max 25 MB per file)</p>
+            </div>
+          </div>
+
+          {/* Selected Files Preview Queue */}
+          {selectedFiles.length > 0 && (
+            <div className="space-y-3 bg-surface p-6 rounded-2xl border border-surface-highest/50">
+              <h5 className="text-[10px] font-black uppercase tracking-widest text-charcoal/40">Queue to Upload ({selectedFiles.length})</h5>
+              <div className="space-y-2 max-h-[150px] overflow-y-auto">
+                {selectedFiles.map((f, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs font-bold text-charcoal bg-white p-3 rounded-xl border border-surface-highest/30">
+                    <div className="flex items-center gap-2 overflow-hidden mr-2">
+                      <FileText size={14} className="text-primary shrink-0" />
+                      <span className="truncate">{f.name}</span>
+                      <span className="text-[10px] text-charcoal/30 font-bold shrink-0">({(f.size / 1024 / 1024).toFixed(1)} MB)</span>
+                    </div>
+                    {upStatus === 'uploading' ? (
+                      <span className="text-[10px] font-black text-primary">{upProgress[f.name] || 0}%</span>
+                    ) : (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); removeSelectedFile(i); }}
+                        className="text-charcoal/30 hover:text-primary transition-colors cursor-pointer"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Metadata Inputs */}
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[9px] font-black uppercase tracking-widest text-charcoal/30 px-1">Active Course</label>
+              <select 
+                value={course}
+                onChange={(e) => setCourse(e.target.value)}
+                className="w-full bg-surface text-charcoal appearance-none p-3.5 rounded-xl border border-surface-highest focus:ring-2 focus:ring-primary/20 text-xs font-black cursor-pointer"
+              >
+                <option value="MATH 1314 - College Algebra">MATH 1314 - College Algebra</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[9px] font-black uppercase tracking-widest text-charcoal/30 px-1">Material Type</label>
+              <select 
+                value={materialType}
+                onChange={(e) => setMaterialType(e.target.value)}
+                className="w-full bg-surface text-charcoal p-3.5 rounded-xl border border-surface-highest focus:ring-2 focus:ring-primary/20 text-xs font-black cursor-pointer"
+              >
+                <option value="Syllabus">Syllabus</option>
+                <option value="Lecture slides">Lecture slides</option>
+                <option value="Reading">Reading</option>
+                <option value="Practice problems">Practice problems</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[9px] font-black uppercase tracking-widest text-charcoal/30 px-1">Faculty Name</label>
+            <input 
+              type="text" 
+              value={facultyName}
+              onChange={(e) => setFacultyName(e.target.value)}
+              className="w-full bg-surface text-charcoal p-3.5 rounded-xl border border-surface-highest focus:ring-2 focus:ring-primary/20 text-xs font-black"
+              placeholder="e.g. Dr. Joan"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[9px] font-black uppercase tracking-widest text-charcoal/30 px-1">Brief Description (Optional)</label>
+            <textarea 
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full bg-surface text-charcoal p-3.5 rounded-xl border border-surface-highest focus:ring-2 focus:ring-primary/20 text-xs font-bold"
+              placeholder="e.g. Chapter 3 quadratic formulae slides"
+            />
+          </div>
+
+          <button 
+            disabled={selectedFiles.length === 0 || upStatus === 'uploading'}
+            onClick={handleUploadFiles}
+            className="w-full py-4 rounded-xl bg-primary text-white font-black uppercase text-[10px] tracking-widest transition-all academic-gradient-maroon disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-primary/10"
+          >
+            {upStatus === 'uploading' ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                Uploading Materials...
+              </>
+            ) : upStatus === 'success' ? (
+              <>
+                <Check size={14} />
+                Successfully Uploaded!
+              </>
+            ) : (
+              <>
+                <Upload size={14} />
+                Upload Course Packs
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Recent Uploads List */}
+      <div className="pt-4 border-t border-surface-highest/50">
+        <h4 className="text-[10px] font-black uppercase tracking-widest text-charcoal/30 mb-4 px-1">Recent Uploads</h4>
+        {uploadsList.length === 0 ? (
+          <p className="text-xs font-bold text-charcoal/20 px-1 italic">No custom course materials have been uploaded yet.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-surface-highest/40 bg-surface-low/20">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-surface-highest text-[9px] uppercase tracking-widest text-charcoal/40 font-black bg-surface">
+                  <th className="p-4 w-12 text-center">Icon</th>
+                  <th className="p-4">File Name</th>
+                  <th className="p-4">Course</th>
+                  <th className="p-4">Type</th>
+                  <th className="p-4">Faculty Sponsor</th>
+                  <th className="p-4">Uploaded</th>
+                  <th className="p-4 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-highest/30 text-xs font-bold text-charcoal/70">
+                {uploadsList.map((up: any) => (
+                  <tr key={up.id} className="hover:bg-white transition-all">
+                    <td className="p-4 text-center text-primary">
+                      <FileText size={16} className="mx-auto" />
+                    </td>
+                    <td className="p-4 font-black text-charcoal">{up.name}</td>
+                    <td className="p-4">{up.course}</td>
+                    <td className="p-4">
+                      <span className="px-2 py-0.5 rounded bg-primary/5 text-primary text-[9px] font-black uppercase tracking-wider">{up.materialType}</span>
+                    </td>
+                    <td className="p-4">{up.facultyName}</td>
+                    <td className="p-4 text-charcoal/40">{new Date(up.uploadedAt).toLocaleDateString()}</td>
+                    <td className="p-4 text-right">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-teal/5 text-teal text-[9px] font-black uppercase tracking-widest border border-teal/10">
+                        <span className="w-1 h-1 rounded-full bg-teal animate-pulse" />
+                        Active
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ResearchUsageTracker() {
+  const [logs, setLogs] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadLogs = () => {
+      try {
+        const raw = localStorage.getItem('roar_activity_logs');
+        if (raw) {
+          setLogs(JSON.parse(raw));
+        } else {
+          setLogs([]);
+        }
+      } catch (e) {}
+    };
+
+    loadLogs();
+    const interval = setInterval(loadLogs, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleClearLogs = () => {
+    if (confirm("Are you sure you want to clear all research study logs?")) {
+      localStorage.removeItem('roar_activity_logs');
+      setLogs([]);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-[3rem] p-10 border border-surface-highest/50 shadow-sm space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Clock size={20} className="text-primary animate-pulse" />
+            <h3 className="text-2xl font-black text-charcoal font-display">Research Usage Frequency</h3>
+          </div>
+          <p className="text-charcoal/40 text-xs font-bold leading-relaxed max-w-xl mt-1">
+            Real-time track of academic prompts, user check-ins, study actions, and student engagement events.
+          </p>
+        </div>
+        
+        {logs.length > 0 && (
+          <button 
+            onClick={handleClearLogs}
+            className="px-4 py-2 hover:bg-red-50 text-red-500 hover:text-red-700 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 self-start sm:self-center"
+          >
+            <Trash2 size={12} />
+            Reset Log
+          </button>
+        )}
+      </div>
+
+      {logs.length === 0 ? (
+        <div className="p-12 text-center bg-surface-low/20 border-2 border-dashed border-charcoal/10 rounded-2xl">
+          <Database size={32} className="mx-auto text-charcoal/10 mb-3" />
+          <h4 className="text-xs font-black text-charcoal uppercase tracking-widest mb-1">No activity events logged</h4>
+          <p className="text-[10px] font-bold text-charcoal/30">Ask the ROAR Assistant a study question, log a mood, or start an assessment to see real-time triggers.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-surface-highest/40 bg-surface-low/20">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-surface-highest text-[9px] uppercase tracking-widest text-charcoal/40 font-black bg-surface">
+                <th className="p-4">Timestamp</th>
+                <th className="p-4">Student Unique ID</th>
+                <th className="p-4">Action Event</th>
+                <th className="p-4">Subject Course</th>
+                <th className="p-4 text-right">Integrity Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-surface-highest/30 text-xs font-bold text-charcoal/70">
+              {logs.map((log: any, index: number) => {
+                const isPrompt = log.action === 'SENT_PROMPT';
+                const isMood = log.action === 'mood_selected';
+                const isDass = log.action === 'dass8_completed';
+                
+                return (
+                  <tr key={index} className="hover:bg-white transition-all">
+                    <td className="p-4 text-charcoal/40 font-mono">
+                      {new Date(log.timestamp).toLocaleString(undefined, {
+                        month: '2-digit',
+                        day: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                      })}
+                    </td>
+                    <td className="p-4 font-black text-charcoal font-mono">
+                      {log.studentId}
+                    </td>
+                    <td className="p-4">
+                      <span className={cn(
+                        "px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-wider",
+                        isPrompt ? "bg-primary/5 text-primary border border-primary/10" :
+                        isMood ? "bg-teal/5 text-teal border border-teal/10" :
+                        "bg-charcoal/5 text-charcoal border border-charcoal/10"
+                      )}>
+                        {log.action}
+                      </span>
+                    </td>
+                    <td className="p-4 text-charcoal/60">{log.subject || 'MATH 1314'}</td>
+                    <td className="p-4 text-right">
+                      <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase text-teal">
+                        <span className="w-1.5 h-1.5 rounded-full bg-teal" />
+                        Verified
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

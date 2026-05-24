@@ -5,7 +5,7 @@ import {
   HelpCircle, Zap, ShieldCheck, Database, Plus, ChevronRight,
   MoreVertical, Info, AlertTriangle, RefreshCcw
 } from 'lucide-react';
-import { cn, incrementCounter } from '../lib/utils';
+import { cn, incrementCounter, logROARActivity } from '../lib/utils';
 import { UserProfile, Message } from '../types';
 import { geminiService } from '../services/geminiService';
 
@@ -25,7 +25,7 @@ const SHORTCUTS = [
   { id: 'summary', label: "Summarize key findings", icon: <Database size={16} /> },
 ];
 
-const NO_SOURCE_REPLY = "Please add or select study materials first so ROAR can answer from your approved sources.";
+const NO_SOURCE_REPLY = "Please add or select study materials first";
 
 interface ChatScreenProps {
   userProfile: UserProfile;
@@ -54,8 +54,32 @@ export default function ChatScreen({
   const [isThinking, setIsThinking] = useState(false);
   const [errorStatus, setErrorStatus] = useState<'RATE_LIMIT' | 'API_KEY' | 'GENERAL' | null>(null);
   
+  const [facultyUploads, setFacultyUploads] = useState<any[]>([]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('roar_faculty_uploads');
+      if (raw) {
+        setFacultyUploads(JSON.parse(raw));
+      }
+    } catch (e) {}
+  }, []);
+
+  const dynamicSources = [
+    ...SOURCES,
+    ...facultyUploads.map(up => ({
+      id: up.id,
+      name: `MATH 1314 - ${up.name}`,
+      uploader: up.facultyName,
+      type: up.materialType,
+      desc: up.description,
+      summary: `Course Pack: ${up.name}. Material Type: ${up.materialType}. Uploaded by faculty sponsor: ${up.facultyName}. ${up.description ? `Description/Syllabus context: ${up.description}` : 'Algebra reference resource.'}`,
+      simplify: `This is a faculty-approved study pack upload named ${up.name} for college algebra. Study this closely.`
+    }))
+  ];
+
   const scrollRef = useRef<HTMLDivElement>(null);
-  const activeSource = SOURCES.find(s => s.id === activeSourceId);
+  const activeSource = dynamicSources.find(s => s.id === activeSourceId);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -71,6 +95,7 @@ export default function ChatScreen({
 
     setErrorStatus(null);
     incrementCounter('promptVolume');
+    logROARActivity('SENT_PROMPT');
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -85,7 +110,13 @@ export default function ChatScreen({
 
     try {
       let reply = "";
-      if (!activeSourceId) {
+      const lowerText = text.toLowerCase();
+      const SAFETY_KEYWORDS = ["self-harm", "suicide", "kill myself", "harm others", "depressed", "anxious", "therapist", "hurt myself", "want to die", "suicidal", "depression", "anxiety", "clinical advice", "therapy", "mental health"];
+      const containsSafetyKeyword = SAFETY_KEYWORDS.some(kw => lowerText.includes(kw));
+
+      if (containsSafetyKeyword) {
+        reply = "I cannot provide clinical, medical, or mental health advice. ROAR AI is designed strictly for academic course preparation. If you are experiencing thoughts of self-harm, a mental health emergency, or emotional distress, please contact the 988 Suicide & Crisis Lifeline by calling or texting 988 immediately (available 24/7), or contact the TSU Counseling Center at 713-313-7804.";
+      } else if (!activeSourceId) {
         reply = NO_SOURCE_REPLY;
       } else {
         const src = activeSource!;
@@ -160,6 +191,15 @@ export default function ChatScreen({
             >
               <option value="">Select MATH 1314 - College Algebra...</option>
               {SOURCES.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {facultyUploads.length > 0 && (
+                <optgroup label="Faculty Uploads Under MATH 1314">
+                  {facultyUploads.map(up => (
+                    <option key={up.id} value={up.id}>
+                      ↳ {up.name} ({up.materialType})
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </div>
         </div>

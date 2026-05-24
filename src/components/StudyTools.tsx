@@ -49,7 +49,28 @@ export default function StudyTools({
   const [selectedUploadType, setSelectedUploadType] = useState<string>('');
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
-  const activeSource = SOURCES.find(s => s.id === activeSourceId);
+  const [facultyUploads, setFacultyUploads] = useState<any[]>([]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('roar_faculty_uploads');
+      if (raw) {
+        setFacultyUploads(JSON.parse(raw));
+      }
+    } catch (e) {}
+  }, []);
+
+  const dynamicSources = [
+    ...SOURCES,
+    ...facultyUploads.map(up => ({
+      id: up.id,
+      name: `MATH 1314 - ${up.name} (${up.materialType})`,
+      cards: SOURCES[0].cards,
+      quiz: SOURCES[0].quiz
+    }))
+  ];
+
+  const activeSource = dynamicSources.find(s => s.id === activeSourceId);
 
   useEffect(() => {
     setCardIdx(0);
@@ -198,11 +219,7 @@ export default function StudyTools({
           <span className="text-[10px] font-bold text-charcoal/30 uppercase tracking-widest italic">Institutional alignment</span>
         </div>
 
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-          <FacultyActionCard onClick={() => handleFacultyCardClick('Lecture Slides')} icon={<Upload size={18} />} label="Lecture Slides" />
-          <FacultyActionCard onClick={() => handleFacultyCardClick('Course Notes')} icon={<FileText size={18} />} label="Course Notes" />
-          <FacultyActionCard onClick={() => handleFacultyCardClick('Study Guide')} icon={<ClipboardList size={18} />} label="Study Guide" />
-          <FacultyActionCard onClick={() => handleFacultyCardClick('Web Link')} icon={<Link size={18} />} label="Web Link" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FacultyActionCard onClick={() => handleFacultyCardClick('Flashcards')} icon={<LayoutGrid size={18} />} label="Flashcards" variant="primary" />
           <FacultyActionCard onClick={() => handleFacultyCardClick('Practice Quiz')} icon={<CheckCircle2 size={18} />} label="Practice Quiz" variant="teal" />
         </div>
@@ -240,6 +257,15 @@ export default function StudyTools({
               >
                 <option value="">Choose a study subject...</option>
                 {SOURCES.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {facultyUploads.length > 0 && (
+                  <optgroup label="Faculty Uploads Under MATH 1314">
+                    {facultyUploads.map(up => (
+                      <option key={up.id} value={up.id}>
+                        ↳ {up.name} ({up.materialType})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </div>
           </div>

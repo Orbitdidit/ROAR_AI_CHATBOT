@@ -4,54 +4,51 @@ import {
   MessageSquare, Heart, ExternalLink, Info, Phone, AlertTriangle, 
   Smile, Frown, Meh, Zap, Moon, Clock, CheckCircle2, ShieldCheck, X, Send, Check
 } from 'lucide-react';
-import { cn, incrementCounter } from '../lib/utils';
+import { cn, incrementCounter, logROARActivity } from '../lib/utils';
 import { UserProfile } from '../types';
 
 export default function SupportPage({ userProfile }: { userProfile: UserProfile }) {
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
-  const [checkInText, setCheckInText] = useState('');
-  const [isSubmittingReflection, setIsSubmittingReflection] = useState(false);
-  const [hasSubmittedReflection, setHasSubmittedReflection] = useState(false);
-
   const [showAssessment, setShowAssessment] = useState(false);
+  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  const [feedbackType, setFeedbackType] = useState<'success' | 'warning' | 'urgent' | null>(null);
 
-  const moods = [
-    { label: "I'm okay", icon: <Smile className="w-4 h-4" />, urgent: false },
-    { label: "Stressed", icon: <Zap className="w-4 h-4" />, urgent: false },
-    { label: "Overwhelmed", icon: <Clock className="w-4 h-4" />, urgent: false },
+  const tier1Moods = [
+    { label: "Motivated", icon: <Zap className="w-4 h-4" /> },
+    { label: "Content", icon: <Smile className="w-4 h-4" /> },
+    { label: "Happy", icon: <Smile className="w-4 h-4" /> },
+    { label: "Life is great", icon: <Heart className="w-4 h-4" /> }
+  ];
+
+  const tier2Moods = [
     { label: "Anxious", icon: <Meh className="w-4 h-4" />, urgent: false },
-    { label: "Sad / low energy", icon: <Moon className="w-4 h-4" />, urgent: false },
-    { label: "I need focus", icon: <Info className="w-4 h-4" />, urgent: false },
-    { label: "I need help now", icon: <AlertTriangle className="w-4 h-4" />, urgent: true },
+    { label: "Sad", icon: <Frown className="w-4 h-4" />, urgent: false },
+    { label: "I need help", icon: <AlertTriangle className="w-4 h-4" />, urgent: true }
   ];
 
   const handleMoodClick = (label: string) => {
     setSelectedMood(label);
     incrementCounter('wellnessParticipation');
-    const moodObj = moods.find(m => m.label === label);
-    if (moodObj?.urgent) {
+    logROARActivity('mood_selected');
+
+    if (label === "I need help") {
       incrementCounter('urgentSupportClicks');
+      setFeedbackMsg("Support materials activated. Immediate student support options are loaded directly below.");
+      setFeedbackType("urgent");
+      setTimeout(() => {
+        const resourcesSection = document.getElementById('resources-section');
+        resourcesSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
+    } else if (["Anxious", "Sad"].includes(label)) {
+      setFeedbackMsg("Mood logged. Take a breath and be kind to yourself today.");
+      setFeedbackType("warning");
+    } else {
+      setFeedbackMsg("Thank you for sharing. Keep up the great work in your studies!");
+      setFeedbackType("success");
     }
   };
 
-  const handleSubmitReflection = () => {
-    if (!checkInText.trim() && !selectedMood) return;
-    
-    setIsSubmittingReflection(true);
-    // Simulate submission
-    setTimeout(() => {
-      setIsSubmittingReflection(false);
-      setHasSubmittedReflection(true);
-      setCheckInText('');
-      setSelectedMood(null);
-      incrementCounter('wellnessParticipation');
-      
-      // Reset success message after 5 seconds
-      setTimeout(() => setHasSubmittedReflection(false), 5000);
-    }, 800);
-  };
-
-  const isUrgent = moods.find(m => m.label === selectedMood)?.urgent || false;
+  const isUrgent = selectedMood === "I need help";
 
   const scrollToAssessment = () => {
     const assessmentSection = document.getElementById('assessment-section');
@@ -74,11 +71,11 @@ export default function SupportPage({ userProfile }: { userProfile: UserProfile 
           <div className="bg-white border border-surface-highest rounded-[2rem] p-8 md:p-10 space-y-6 shadow-sm max-w-4xl relative overflow-hidden">
             <div className="relative z-10 space-y-4">
               <p className="text-charcoal text-lg md:text-xl font-black leading-tight tracking-tight font-display">
-                First: Complete this assessment so support resources can be tailored to your experience during the ROAR program.
+                First: Complete this check-in so support resources can be tailored to your experience during the ROAR program.
               </p>
               <div className="space-y-4 text-charcoal/60 text-sm font-medium leading-relaxed max-w-2xl">
                 <p>
-                  This short wellness check-in uses the DASS (Depression, Anxiety, and Stress Scale - Short Version) to help better understand how students may experience stress during academically demanding periods.
+                  This short wellness check-in uses a standard questionnaire (the Depression, Anxiety, and Stress Scale) to help better understand how students may experience stress during academically demanding periods.
                 </p>
                 <p>
                   Your participation is voluntary, and your responses help improve student support resources and the overall ROAR experience.
@@ -106,8 +103,8 @@ export default function SupportPage({ userProfile }: { userProfile: UserProfile 
               <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mb-6 backdrop-blur-sm border border-white/10">
                 <CheckCircle2 size={32} />
               </div>
-              <h3 className="text-2xl font-black uppercase tracking-widest mb-1 font-display">Start Assessment</h3>
-              <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">DASS Screening Tool</p>
+              <h3 className="text-2xl font-black uppercase tracking-widest mb-1 font-display">Start Wellness Check-In</h3>
+              <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Optional Check-In</p>
             </div>
             <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl group-hover:scale-110 transition-transform" />
           </button>
@@ -122,7 +119,7 @@ export default function SupportPage({ userProfile }: { userProfile: UserProfile 
               <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mb-6 backdrop-blur-sm border border-white/10">
                 <Heart size={32} />
               </div>
-              <h3 className="text-2xl font-black uppercase tracking-widest mb-1 font-display">Wellness Reflection</h3>
+              <h3 className="text-2xl font-black uppercase tracking-widest mb-1 font-display">Daily Mood Check-In</h3>
               <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Optional Exercise</p>
             </div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2 blur-3xl group-hover:scale-110 transition-transform" />
@@ -130,7 +127,7 @@ export default function SupportPage({ userProfile }: { userProfile: UserProfile 
         </div>
       </header>
 
-      <section className="space-y-8">
+      <section id="resources-section" className="space-y-8">
         <div className="flex items-center gap-4">
           <h2 className="text-2xl font-black text-charcoal tracking-tight font-display">Immediate Support Resources</h2>
           <div className="h-px flex-1 bg-surface-highest/50" />
@@ -180,70 +177,82 @@ export default function SupportPage({ userProfile }: { userProfile: UserProfile 
       <section id="reflection-section" className="space-y-8 pt-8 border-t border-surface-highest/50">
         <div className="space-y-4">
           <div className="space-y-2">
-            <h3 className="text-2xl font-black text-charcoal tracking-tight">Optional Wellness Reflection</h3>
+            <h3 className="text-2xl font-black text-charcoal tracking-tight">Daily Mood Check-In</h3>
             <p className="text-sm font-medium text-charcoal/60 leading-relaxed max-w-3xl">
-              This optional reflection space allows students to briefly document thoughts, stressors, or experiences during the ROAR program. Responses may be reviewed only by authorized program staff for support and research purposes. Please do not use this space to report emergencies or urgent mental health crises.
+              This mood check-in allows students to quickly log their current mood during the ROAR program. Responses help our research team understand student engagement and improve services. Please do not use this space to report emergencies.
             </p>
           </div>
 
-          <div className="space-y-4 mt-8">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-charcoal/40">Daily Sentiment Check</h4>
-            <div className="flex flex-wrap gap-2">
-              {moods.map((mood) => (
-                <button
-                  key={mood.label}
-                  onClick={() => handleMoodClick(mood.label)}
-                  className={cn(
-                    "px-5 py-3 rounded-xl text-xs font-black border transition-all flex items-center gap-2 active:scale-95",
-                    selectedMood === mood.label
-                      ? (mood.urgent ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" : "bg-teal text-white border-teal shadow-lg shadow-teal/20")
-                      : (mood.urgent ? "bg-white border-primary/30 text-primary hover:bg-primary hover:text-white" : "bg-white border-surface-highest text-charcoal hover:border-teal")
-                  )}
-                >
-                  {mood.icon}
-                  {mood.label}
-                </button>
-              ))}
+          <div className="space-y-6 mt-8">
+            <h3 className="text-xl font-black text-charcoal tracking-tight font-display">How are you feeling?</h3>
+            
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-black uppercase tracking-widest text-teal">POSITIVE</span>
+                <div className="h-px flex-1 bg-teal/10" />
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {tier1Moods.map((mood) => (
+                  <button
+                    key={mood.label}
+                    onClick={() => handleMoodClick(mood.label)}
+                    className={cn(
+                      "px-5 py-3 rounded-xl text-xs font-black border transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer",
+                      selectedMood === mood.label
+                        ? "bg-teal text-white border-teal shadow-lg shadow-teal/20"
+                        : "bg-white border-surface-highest text-charcoal hover:border-teal hover:bg-teal/5"
+                    )}
+                  >
+                    {mood.icon}
+                    <span>{mood.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-black uppercase tracking-widest text-primary">NEEDS SUPPORT</span>
+                <div className="h-px flex-1 bg-primary/10" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {tier2Moods.map((mood) => (
+                  <button
+                    key={mood.label}
+                    onClick={() => handleMoodClick(mood.label)}
+                    className={cn(
+                      "px-5 py-3 rounded-xl text-xs font-black border transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer",
+                      selectedMood === mood.label
+                        ? "academic-gradient-maroon text-white border-primary shadow-lg shadow-primary/20"
+                        : "bg-white border-primary/20 text-primary hover:border-primary hover:bg-primary/5"
+                    )}
+                  >
+                    {mood.icon}
+                    <span>{mood.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-charcoal/40">Reflection Input</h4>
-            <textarea 
-              rows={3}
-              value={checkInText}
-              onChange={(e) => setCheckInText(e.target.value)}
-              className="w-full bg-white text-charcoal px-6 py-5 min-h-[120px] rounded-[1.5rem] border border-surface-highest focus:ring-4 focus:ring-teal/10 focus:border-teal transition-all text-sm font-medium placeholder:text-charcoal/20 shadow-sm"
-              placeholder="Briefly document your thoughts or experiences..."
-            />
-            <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
-              <button 
-                onClick={handleSubmitReflection}
-                disabled={isSubmittingReflection || (!checkInText.trim() && !selectedMood)}
-                className="w-full sm:w-auto px-8 py-4 rounded-xl bg-teal text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-teal/10 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:scale-100 flex items-center justify-center gap-2"
-              >
-                {isSubmittingReflection ? (
-                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <Send size={14} />
-                )}
-                {isSubmittingReflection ? "Sending..." : "Send Reflection"}
-              </button>
-
-              <AnimatePresence>
-                {hasSubmittedReflection && (
-                  <motion.div 
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    className="flex items-center gap-2 text-teal font-black uppercase text-[10px] tracking-widest bg-teal/5 px-4 py-2 rounded-full border border-teal/10"
-                  >
-                    <Check size={14} />
-                    Reflection Saved
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+          <div className="pt-4">
+            <AnimatePresence>
+              {feedbackMsg && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className={cn(
+                    "p-5 rounded-2xl border text-sm font-bold text-center",
+                    feedbackType === 'success' ? "bg-teal/5 border-teal/10 text-teal" :
+                    feedbackType === 'warning' ? "bg-amber-50 border-amber-100 text-amber-800" :
+                    "bg-primary/5 border-primary/10 text-primary"
+                  )}
+                >
+                  {feedbackMsg}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
@@ -260,7 +269,7 @@ export default function SupportPage({ userProfile }: { userProfile: UserProfile 
                   <AlertTriangle size={32} className="text-white" />
                 </div>
                 <div>
-                  <h3 className="text-3xl font-black tracking-tight mb-2">You are not alone. Help is available right now.</h3>
+                  <h3 className="text-3xl font-black tracking-tight mb-2">You are not alone. Help is available.</h3>
                   <p className="text-white/60 font-bold uppercase tracking-widest text-xs">Tap any option below to call directly.</p>
                 </div>
                 
@@ -482,7 +491,7 @@ function DASS8Assessment({ isOpen, onClose, userProfile }: { isOpen: boolean; on
           >
             <header className="p-8 border-b border-surface-highest/30 flex justify-between items-center bg-primary text-white shrink-0">
               <div>
-                <h3 className="text-xl font-black uppercase tracking-widest">DASS-8 Wellness Check-In</h3>
+                <h3 className="text-xl font-black uppercase tracking-widest">Wellness Check-In</h3>
                 {step > 0 && step < 9 && (
                   <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Question {step} of 8</p>
                 )}
@@ -504,10 +513,10 @@ function DASS8Assessment({ isOpen, onClose, userProfile }: { isOpen: boolean; on
                 <div className="space-y-6">
                   <div className="p-6 bg-primary/5 rounded-3xl border border-primary/10">
                     <p className="text-sm font-bold text-primary leading-relaxed mb-4">
-                      First: Complete this assessment so support resources can be tailored to your experience during the ROAR program. Please answer honestly.
+                      First: Complete this check-in so support resources can be tailored to your experience during the ROAR program. Please answer honestly.
                     </p>
                     <p className="text-xs font-medium text-charcoal/60 leading-relaxed mb-4">
-                      This short wellness check-in uses the DASS (Depression, Anxiety, and Stress Scale - Short Version) to help better understand how students may experience stress during academically demanding periods.
+                      This short wellness check-in uses a standard questionnaire (the Depression, Anxiety, and Stress Scale) to help better understand how students may experience stress during academically demanding periods.
                     </p>
                     <p className="text-xs font-medium text-charcoal/60 leading-relaxed">
                       Your participation is voluntary, and your responses help improve student support resources and the overall ROAR experience.
@@ -519,7 +528,7 @@ function DASS8Assessment({ isOpen, onClose, userProfile }: { isOpen: boolean; on
                     <div>
                       <h4 className="text-xs font-black uppercase tracking-widest text-charcoal mb-1">Wellness Notice</h4>
                       <p className="text-[11px] font-bold text-charcoal/40 leading-relaxed italic">
-                        This assessment is not a medical diagnosis and does not replace professional mental health care.
+                        This optional check-in is not a medical diagnosis and does not replace professional mental health care.
                       </p>
                     </div>
                   </div>
@@ -529,7 +538,7 @@ function DASS8Assessment({ isOpen, onClose, userProfile }: { isOpen: boolean; on
                       onClick={() => setStep(1)}
                       className="flex-1 p-5 rounded-2xl bg-primary text-white font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
                     >
-                      Begin Assessment
+                      Begin Wellness Check-In
                     </button>
                     <button 
                       onClick={onClose}
@@ -608,7 +617,7 @@ function DASS8Assessment({ isOpen, onClose, userProfile }: { isOpen: boolean; on
                     <div className="p-6 rounded-3xl bg-teal/5 border border-teal/10 flex items-start gap-4">
                       <Heart className="text-teal shrink-0 mt-1" size={20} />
                       <p className="text-sm font-bold text-teal leading-relaxed">
-                        Based on your check-in, you may find these support resources helpful right now.
+                        Based on your check-in, you may find these support resources helpful.
                       </p>
                     </div>
                   )}

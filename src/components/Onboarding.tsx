@@ -1,19 +1,93 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronRight, ChevronLeft, Check, Sparkles, User, GraduationCap, BookOpen, MessageSquare, CheckCircle2 } from 'lucide-react';
 import { cn, incrementCounter } from '../lib/utils';
-import { UserProfile, Classification, GPABand, CommunicationStyle } from '../types';
+import { UserProfile, Classification, GPABand, CommunicationStyle, UserRole } from '../types';
 
 interface OnboardingProps {
   onComplete: (profile: UserProfile) => void;
 }
 
 export default function Onboarding({ onComplete }: OnboardingProps) {
+  const [hasSignedIn, setHasSignedIn] = useState(() => !!localStorage.getItem('roar_unique_id'));
+  const [uniqueId, setUniqueId] = useState('');
+  const [idError, setIdError] = useState('');
+  const [lockoutTimeLeft, setLockoutTimeLeft] = useState<number>(0);
+
+  const getFailedAttempts = (): number[] => {
+    try {
+      const raw = localStorage.getItem('roar_failed_attempts');
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.map(Number).filter(t => !isNaN(t));
+      }
+    } catch (e) {
+      // ignore
+    }
+    return [];
+  };
+
+  const saveFailedAttempts = (attempts: number[]) => {
+    localStorage.setItem('roar_failed_attempts', JSON.stringify(attempts));
+  };
+
+  const formatTimeLeft = (secondsCount: number) => {
+    const m = Math.floor(secondsCount / 60);
+    const s = secondsCount % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  // Keyboard shortcut listener for Ctrl+Shift+D
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key.toUpperCase() === 'D') {
+        e.preventDefault();
+        setIsAdminLogin(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Check lockout state periodically
+  useEffect(() => {
+    const checkLockout = () => {
+      const now = Date.now();
+      const fiveMinsAgo = now - 5 * 60 * 1000;
+      let attempts = getFailedAttempts();
+      
+      // Clean up attempts older than 5 minutes
+      attempts = attempts.filter(t => t > fiveMinsAgo);
+      saveFailedAttempts(attempts);
+
+      if (attempts.length >= 5) {
+        // Locked out! Lockout lasts until 5 minutes after the latest (5th) attempt
+        const latestAttempt = Math.max(...attempts);
+        const unlockTime = latestAttempt + 5 * 60 * 1000;
+        const timeLeftMs = unlockTime - now;
+        
+        if (timeLeftMs > 0) {
+          setLockoutTimeLeft(Math.ceil(timeLeftMs / 1000));
+        } else {
+          setLockoutTimeLeft(0);
+          saveFailedAttempts([]);
+        }
+      } else {
+        setLockoutTimeLeft(0);
+      }
+    };
+
+    checkLockout();
+    const interval = setInterval(checkLockout, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const [step, setStep] = useState(0);
   const [isExited, setIsExited] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
-    studentId: '',
+    studentId: localStorage.getItem('roar_unique_id') || '',
     classification: '' as Classification,
     gpaBand: '' as GPABand,
     courses: [] as string[],
@@ -34,6 +108,77 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const [isAdminLogin, setIsAdminLogin] = useState(false);
   const [adminCredentials, setAdminCredentials] = useState({ email: '', password: '' });
   const [adminError, setAdminError] = useState(false);
+
+  const handleValidateId = () => {
+    if (lockoutTimeLeft > 0) return;
+
+    const cleanId = uniqueId.trim().toUpperCase();
+    const matchStudent = cleanId.match(/^ROAR-S-(\d{3})$/);
+    const matchAdmin = cleanId.match(/^ROAR-A-(\d{3})$/);
+    const matchStudentStu = cleanId.match(/^ROAR-STU-24(\d{2})$/);
+    const matchAdminAdm = cleanId.match(/^ROAR-ADM-24(\d{2})$/);
+    let isValid = false;
+    let detectedRole: UserRole = 'student';
+
+    if (matchStudent) {
+      const num = parseInt(matchStudent[1], 10);
+      if (num >= 1 && num <= 35) {
+        isValid = true;
+        detectedRole = 'student';
+      }
+    } else if (matchStudentStu) {
+      const num = parseInt(matchStudentStu[1], 10);
+      if (num >= 1 && num <= 35) {
+        isValid = true;
+        detectedRole = 'student';
+      }
+    } else if (matchAdmin) {
+      const num = parseInt(matchAdmin[1], 10);
+      if (num >= 1 && num <= 5) {
+        isValid = true;
+        detectedRole = 'admin';
+      }
+    } else if (matchAdminAdm) {
+      const num = parseInt(matchAdminAdm[1], 10);
+      if (num >= 1 && num <= 5) {
+        isValid = true;
+        detectedRole = 'admin';
+      }
+    }
+
+    if (isValid) {
+      localStorage.setItem('roar_unique_id', cleanId);
+      localStorage.setItem('roar_role', detectedRole);
+      localStorage.removeItem('roar_failed_attempts');
+      setLockoutTimeLeft(0);
+      
+      setFormData(prev => ({
+        ...prev,
+        studentId: cleanId
+      }));
+
+      setHasSignedIn(true);
+      setStep(0);
+    } else {
+      const attempts = getFailedAttempts();
+      const now = Date.now();
+      attempts.push(now);
+      saveFailedAttempts(attempts);
+
+      const fiveMinsAgo = now - 5 * 60 * 1000;
+      const recentAttempts = attempts.filter(t => t > fiveMinsAgo);
+      saveFailedAttempts(recentAttempts);
+
+      if (recentAttempts.length >= 5) {
+        const latestAttempt = Math.max(...recentAttempts);
+        const timeLeftMs = (latestAttempt + 5 * 60 * 1000) - now;
+        setLockoutTimeLeft(Math.ceil(timeLeftMs / 1000));
+        setIdError('');
+      } else {
+        setIdError("ID not recognized. Please check and try again, or contact your research coordinator.");
+      }
+    }
+  };
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +202,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         consent_version: 'v1.0_pilot'
       };
       localStorage.setItem('roar_consent', JSON.stringify(consentObj));
+      localStorage.setItem('roar_unique_id', 'admin-demo');
+      localStorage.setItem('roar_role', 'admin');
       
       onComplete(profile);
     } else {
@@ -75,12 +222,14 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       setStep(step + 1);
     } else {
       incrementCounter('activeStudents');
+      const savedId = localStorage.getItem('roar_unique_id') || formData.studentId;
+      const role = (localStorage.getItem('roar_role') || 'student') as UserRole;
       const profile: UserProfile = {
-        id: 'user-' + Date.now(),
-        email: formData.studentId + '@student.tsu.edu',
+        id: savedId,
+        email: savedId + '@student.tsu.edu',
         firstName: formData.firstName,
-        studentId: formData.studentId,
-        role: 'student',
+        studentId: savedId,
+        role: role,
         classification: formData.classification,
         gpaBand: formData.gpaBand,
         courseSections: formData.courses,
@@ -94,16 +243,33 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const handleBack = () => setStep(step - 1);
 
   const handleConsent = (agreed: boolean) => {
+    const savedId = localStorage.getItem('roar_unique_id') || formData.studentId || 'demo_user';
     const consentObj = {
       agreed,
       timestamp: new Date().toISOString(),
-      student_id: formData.studentId || 'demo_user',
+      student_id: savedId,
       consent_version: 'v1.0_pending_legal'
     };
     localStorage.setItem('roar_consent', JSON.stringify(consentObj));
     
     if (agreed) {
-      setStep(1);
+      const cleanId = (localStorage.getItem('roar_unique_id') || '').trim().toUpperCase();
+      const isAdminId = cleanId.startsWith('ROAR-A-');
+      if (isAdminId) {
+        const profile: UserProfile = {
+          id: cleanId,
+          email: 'roar.admin@demo.com',
+          firstName: 'ROAR',
+          lastName: 'Admin',
+          role: 'admin',
+          permissionLevel: 'Superuser',
+          department: 'TSU Pilot Program',
+          firstLoginDate: new Date().toISOString()
+        };
+        onComplete(profile);
+      } else {
+        setStep(1);
+      }
     } else {
       setIsExited(true);
     }
@@ -158,6 +324,86 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             </button>
           </div>
         </motion.div>
+      </div>
+    );
+  }
+
+  if (!hasSignedIn && !isAdminLogin) {
+    return (
+      <div className="min-h-screen bg-surface flex flex-col items-center justify-center p-6 pb-24 animate-in fade-in duration-500">
+        <div className="mb-12 relative flex flex-col items-center">
+          <img 
+            src="/roar-wordmark.png" 
+            alt="ROAR Wordmark"
+            className="h-12 w-auto object-contain"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              const fallback = e.currentTarget.parentElement?.querySelector('.logo-fallback');
+              if (fallback) (fallback as HTMLElement).style.display = 'flex';
+            }}
+          />
+          <div className="logo-fallback hidden flex-col items-center">
+            <div className="text-3xl font-black tracking-tighter text-charcoal italic leading-none">ROAR</div>
+            <div className="text-[8px] font-bold text-charcoal/40 uppercase tracking-[0.3em] mt-1 text-center">
+              Rising Over All Roadblocks
+            </div>
+          </div>
+        </div>
+
+        <div className="w-full max-w-xl">
+          <div className="mb-8 flex flex-col items-center animate-in slide-in-from-bottom-4 duration-500">
+            <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-charcoal text-center font-display">
+              Welcome to ROAR
+            </h1>
+            <p className="text-charcoal/40 font-bold mt-2 text-center text-sm">
+              Please enter your Unique Identifier to begin.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-[3rem] p-8 md:p-12 shadow-2xl shadow-primary/5 border border-surface-highest/50 relative overflow-hidden">
+            <div className="space-y-6">
+              {lockoutTimeLeft > 0 && (
+                <div role="alert" className="p-5 rounded-2xl bg-primary/10 border border-primary/20 text-primary text-center animate-in fade-in duration-300">
+                  <p className="text-xs font-black uppercase tracking-wider mb-2 text-primary">Security Lockout</p>
+                  <p className="text-xs font-bold leading-relaxed">
+                    Too many incorrect attempts. Please try again in {formatTimeLeft(lockoutTimeLeft)} minutes or contact your research coordinator.
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-charcoal/30 px-1">Unique ID</label>
+                <input 
+                  type="text"
+                  value={uniqueId}
+                  onChange={e => {
+                    setUniqueId(e.target.value.toUpperCase());
+                    setIdError('');
+                  }}
+                  disabled={lockoutTimeLeft > 0}
+                  className="w-full bg-white text-charcoal p-5 text-center rounded-2xl border border-surface-highest focus:ring-4 focus:ring-primary/10 focus:border-primary text-xl font-black font-mono placeholder:text-charcoal/20 transition-all uppercase disabled:opacity-50 disabled:bg-surface"
+                  placeholder="Enter the ID provided to you"
+                />
+                <p className="text-[11px] font-medium text-charcoal/40 italic text-center leading-relaxed mt-2 p-1">
+                  Your Unique Identifier was provided privately by your ROAR research coordinator. Do not share your ID with anyone.
+                </p>
+                {idError && !lockoutTimeLeft && (
+                  <p className="text-primary font-bold text-xs leading-relaxed mt-2 p-4 bg-primary/5 rounded-2xl border border-primary/10 text-center animate-pulse">
+                    {idError}
+                  </p>
+                )}
+              </div>
+
+              <button 
+                onClick={handleValidateId}
+                disabled={lockoutTimeLeft > 0 || uniqueId.trim().length < 10}
+                className="w-full p-5 rounded-2xl bg-primary text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all academic-gradient-maroon cursor-pointer disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -346,20 +592,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   >
                     I Accept and Proceed
                   </button>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => setIsAdminLogin(true)}
-                      className="flex-1 p-4 rounded-xl bg-teal/5 border border-teal/20 text-teal font-black uppercase text-[9px] tracking-widest hover:bg-teal/10 transition-all font-display"
-                    >
-                      Admin Access
-                    </button>
-                    <button 
-                      onClick={() => handleConsent(false)}
-                      className="flex-1 p-4 rounded-xl bg-surface text-charcoal/40 font-black uppercase text-[9px] tracking-widest hover:bg-surface-low transition-all"
-                    >
-                      Decline
-                    </button>
-                  </div>
+                  <button 
+                    onClick={() => handleConsent(false)}
+                    className="w-full p-4 rounded-xl bg-surface text-charcoal/40 font-black uppercase text-[9px] tracking-widest hover:bg-surface-low transition-all"
+                  >
+                    No, I do not agree
+                  </button>
                 </div>
               </motion.div>
             ) : step === 1 ? (

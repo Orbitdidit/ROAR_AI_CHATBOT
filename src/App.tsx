@@ -114,6 +114,18 @@ export default function App() {
     window.location.reload();
   };
 
+  const handleSignOut = () => {
+    localStorage.removeItem('roar_unique_id');
+    localStorage.removeItem('roar_role');
+    localStorage.removeItem('roar_student_profile');
+    localStorage.removeItem('roar_consent');
+    setUserProfile(null);
+    setConsent(null);
+    setActiveSources([]);
+    setActiveScreen('chat');
+    window.location.reload();
+  };
+
   const switchRole = (role: UserRole) => {
     if (!userProfile) return;
     const isNowAdmin = ['faculty', 'admin', 'staff'].includes(role);
@@ -249,6 +261,7 @@ export default function App() {
       onResetDemo={resetDemo}
       onWithdrawConsent={withdrawConsent}
       onSwitchRole={switchRole}
+      onSignOut={handleSignOut}
     >
       {renderScreen()}
     </Layout>

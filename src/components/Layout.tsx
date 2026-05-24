@@ -19,6 +19,7 @@ interface LayoutProps {
   onResetDemo: () => void;
   onWithdrawConsent: () => void;
   onSwitchRole: (role: UserRole) => void;
+  onSignOut: () => void;
 }
 
 export default function Layout({ 
@@ -30,7 +31,8 @@ export default function Layout({
   uploadProgress, 
   onResetDemo, 
   onWithdrawConsent, 
-  onSwitchRole 
+  onSwitchRole,
+  onSignOut
 }: LayoutProps) {
   const isAdmin = userProfile?.role && ['faculty', 'admin', 'staff'].includes(userProfile.role);
   const [showDemoMenu, setShowDemoMenu] = React.useState(false);
@@ -127,6 +129,14 @@ export default function Layout({
               </div>
 
               <div className="space-y-2">
+                <button 
+                  onClick={() => { onSignOut(); setShowDemoMenu(false); }}
+                  className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-charcoal/10 text-charcoal transition-colors text-left cursor-pointer"
+                >
+                  <UserCircle size={16} className="text-charcoal/60" />
+                  <span className="text-xs font-bold text-charcoal/80">Sign Out</span>
+                </button>
+
                 <button 
                   onClick={() => { onResetDemo(); setShowDemoMenu(false); }}
                   className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-red-50 text-red-500 transition-colors text-left"
