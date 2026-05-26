@@ -9,7 +9,12 @@ interface OnboardingProps {
 }
 
 export default function Onboarding({ onComplete }: OnboardingProps) {
-  const [hasSignedIn, setHasSignedIn] = useState(() => !!localStorage.getItem('roar_unique_id'));
+  const [hasSignedIn, setHasSignedIn] = useState(() => {
+    const hasUid = !!localStorage.getItem('roar_unique_id');
+    const hasConsent = !!localStorage.getItem('roar_consent');
+    const hasProfile = !!localStorage.getItem('roar_student_profile');
+    return hasUid && hasConsent && hasProfile;
+  });
   const [uniqueId, setUniqueId] = useState('');
   const [idError, setIdError] = useState('');
   const [lockoutTimeLeft, setLockoutTimeLeft] = useState<number>(0);
@@ -85,6 +90,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
   const [step, setStep] = useState(0);
   const [isExited, setIsExited] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
     studentId: localStorage.getItem('roar_unique_id') || '',
@@ -537,7 +543,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-6"
               >
-                <div className="max-h-[400px] overflow-y-auto pr-2 space-y-6 custom-scrollbar">
+                <div className="max-h-[350px] overflow-y-auto pr-2 space-y-6 custom-scrollbar">
                   <div className="space-y-2">
                     <h2 className="text-xl font-black text-charcoal tracking-tight font-display">ROAR AI Consent, Limitations, and User Acknowledgement</h2>
                     <p className="text-xs font-bold text-charcoal/40 italic">Please review and acknowledge the following before proceeding.</p>
@@ -566,22 +572,17 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     </div>
 
                     <div className="p-5 bg-teal/5 rounded-2xl border border-teal/10">
-                      <h3 className="text-[10px] font-black uppercase tracking-widest text-teal mb-3">4. AI Limitations and Privacy Notice</h3>
-                      
-                      <div className="space-y-3">
-                        <div>
-                          <h4 className="text-[9px] font-black uppercase tracking-widest text-teal/60 mb-1">Accuracy</h4>
-                          <p className="text-[11px] font-bold text-charcoal/70">
-                            AI responses may occasionally be inaccurate, incomplete, or inappropriate. Users should not rely solely on these responses for health, safety, legal, or academic decisions.
-                          </p>
-                        </div>
-                        <div>
-                          <h4 className="text-[9px] font-black uppercase tracking-widest text-teal/60 mb-1">Privacy</h4>
-                          <p className="text-[11px] font-bold text-charcoal/70">
-                            Interactions may be logged or reviewed by authorized personnel for safety, compliance, or quality improvement purposes. Do not submit sensitive personal, medical, or confidential information.
-                          </p>
-                        </div>
-                      </div>
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-teal mb-2">4. AI Limitations</h3>
+                      <p className="text-xs font-bold text-charcoal/70 leading-relaxed">
+                        AI responses may occasionally be inaccurate, incomplete, or inappropriate. Users should not rely solely on these responses for health, safety, legal, or academic decisions.
+                      </p>
+                    </div>
+
+                    <div className="p-5 bg-teal/5 rounded-2xl border border-teal/10">
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-teal mb-2">5. Privacy Notice</h3>
+                      <p className="text-xs font-bold text-charcoal/70 leading-relaxed">
+                        Interactions may be logged or reviewed by authorized personnel for safety, compliance, or quality improvement purposes. Do not submit sensitive personal, medical, or confidential information.
+                      </p>
                     </div>
                   </div>
 
@@ -592,16 +593,36 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   </div>
                 </div>
 
+                {/* TSU General Counsel Direct Checked Consent */}
+                <div className="flex items-start gap-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                  <input 
+                    type="checkbox"
+                    id="consent-checkbox"
+                    checked={consentChecked}
+                    onChange={(e) => consentChecked ? setConsentChecked(false) : setConsentChecked(true)}
+                    className="mt-1 h-5 w-5 rounded border-surface-highest text-primary focus:ring-primary/20 cursor-pointer accent-primary shrink-0"
+                  />
+                  <label htmlFor="consent-checkbox" className="text-xs font-bold text-charcoal/70 leading-relaxed cursor-pointer select-none">
+                    I have read and understand the above disclaimer and acknowledge that Roar AI is not a crisis intervention or emergency response service.
+                  </label>
+                </div>
+
                 <div className="flex flex-col gap-3 pt-2">
                   <button 
+                    disabled={!consentChecked}
                     onClick={() => handleConsent(true)}
-                    className="w-full p-5 rounded-2xl bg-primary text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
+                    className={cn(
+                      "w-full p-5 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl transition-all",
+                      consentChecked 
+                        ? "bg-primary text-white shadow-primary/20 hover:scale-[1.02] active:scale-95 cursor-pointer academic-gradient-maroon"
+                        : "bg-surface-highest text-charcoal/30 cursor-not-allowed shadow-none"
+                    )}
                   >
                     I Accept and Proceed
                   </button>
                   <button 
                     onClick={() => handleConsent(false)}
-                    className="w-full p-4 rounded-xl bg-surface text-charcoal/40 font-black uppercase text-[9px] tracking-widest hover:bg-surface-low transition-all"
+                    className="w-full p-4 rounded-xl bg-surface text-charcoal/40 font-black uppercase text-[9px] tracking-widest hover:bg-surface-low transition-all cursor-pointer"
                   >
                     No, I do not agree
                   </button>

@@ -21,9 +21,10 @@ export default function SupportPage({ userProfile }: { userProfile: UserProfile 
   ];
 
   const tier2Moods = [
-    { label: "Anxious", icon: <Meh className="w-4 h-4" />, urgent: false },
-    { label: "Sad", icon: <Frown className="w-4 h-4" />, urgent: false },
-    { label: "I need help", icon: <AlertTriangle className="w-4 h-4" />, urgent: true }
+    { label: "Overwhelmed", icon: <Meh className="w-4 h-4" /> },
+    { label: "Anxious", icon: <Meh className="w-4 h-4" /> },
+    { label: "Sad", icon: <Frown className="w-4 h-4" /> },
+    { label: "I need help", icon: <AlertTriangle className="w-4 h-4" /> }
   ];
 
   const handleMoodClick = (label: string) => {
@@ -31,24 +32,25 @@ export default function SupportPage({ userProfile }: { userProfile: UserProfile 
     incrementCounter('wellnessParticipation');
     logROARActivity('mood_selected');
 
-    if (label === "I need help") {
-      incrementCounter('urgentSupportClicks');
-      setFeedbackMsg("Support materials activated. Immediate student support options are loaded directly below.");
-      setFeedbackType("urgent");
+    const isTier2Clicked = ["Overwhelmed", "Anxious", "Sad", "I need help"].includes(label);
+
+    if (isTier2Clicked) {
+      if (label === "I need help") {
+        incrementCounter('urgentSupportClicks');
+      }
+      setFeedbackMsg(null);
+      setFeedbackType(null);
       setTimeout(() => {
         const resourcesSection = document.getElementById('resources-section');
         resourcesSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 300);
-    } else if (["Anxious", "Sad"].includes(label)) {
-      setFeedbackMsg("Mood logged. Take a breath and be kind to yourself today.");
-      setFeedbackType("warning");
     } else {
-      setFeedbackMsg("Thank you for sharing. Keep up the great work in your studies!");
+      setFeedbackMsg("Awesome");
       setFeedbackType("success");
     }
   };
 
-  const isUrgent = selectedMood === "I need help";
+  const isTier2Active = selectedMood ? ["Overwhelmed", "Anxious", "Sad", "I need help"].includes(selectedMood) : false;
 
   const scrollToAssessment = () => {
     const assessmentSection = document.getElementById('assessment-section');
@@ -204,7 +206,7 @@ export default function SupportPage({ userProfile }: { userProfile: UserProfile 
               ))}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
               {tier2Moods.map((mood) => (
                 <button
                   key={mood.label}
@@ -230,14 +232,12 @@ export default function SupportPage({ userProfile }: { userProfile: UserProfile 
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className={cn(
-                    "p-5 rounded-2xl border text-sm font-bold text-center",
-                    feedbackType === 'success' ? "bg-teal/5 border-teal/10 text-teal" :
-                    feedbackType === 'warning' ? "bg-amber-50 border-amber-100 text-amber-800" :
-                    "bg-primary/5 border-primary/10 text-primary"
-                  )}
+                  className="p-6 rounded-2xl border bg-teal/5 border-teal/20 text-teal text-left space-y-2"
                 >
-                  {feedbackMsg}
+                  <h4 className="text-lg font-black font-display">Awesome — you're on the right path!</h4>
+                  <p className="text-xs font-bold opacity-80 leading-relaxed">
+                    Way to go. Keep up the great work and that great energy. We're glad to hear it.
+                  </p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -245,27 +245,30 @@ export default function SupportPage({ userProfile }: { userProfile: UserProfile 
         </div>
 
         <AnimatePresence>
-          {isUrgent && (
+          {isTier2Active && (
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
-              className="p-8 md:p-12 rounded-[3rem] academic-gradient-maroon text-white relative overflow-hidden shadow-2xl"
+              className="p-8 md:p-12 rounded-[3rem] bg-gradient-to-br from-[#6E0000] to-[#410000] text-white relative overflow-hidden shadow-2xl"
             >
-              <div className="relative z-10 flex flex-col items-center text-center max-w-2xl mx-auto space-y-6">
+              <div className="relative z-10 flex flex-col items-center text-center max-w-4xl mx-auto space-y-6">
                 <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center">
                   <AlertTriangle size={32} className="text-white" />
                 </div>
                 <div>
-                  <h3 className="text-3xl font-black tracking-tight mb-2">You are not alone. Help is available.</h3>
-                  <p className="text-white/60 font-bold uppercase tracking-widest text-xs">Tap any option below to call directly.</p>
+                  <h3 className="text-2xl md:text-3xl font-black tracking-tight mb-2">You're not alone — help is available.</h3>
+                  <p className="text-white/80 font-bold max-w-xl mx-auto text-sm leading-relaxed">
+                    Please reach out if you need support. The resources below are available 24/7.
+                  </p>
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-                  <CrisisButton tel="tel:988" label="988 Crisis Lifeline" sub="National Support" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 w-full pt-4">
+                  <CrisisButton tel="tel:988" label="Call 988" sub="24/7 Support Line" />
+                  <CrisisButton tel="sms:988" label="Text 988" sub="24/7 Text Line" />
+                  <CrisisButton tel="tel:7133137804" label="TSU Counseling" sub="713-313-7804" />
                   <CrisisButton tel="tel:7133137863" label="TSU After-Hours" sub="713-313-7863" />
-                  <CrisisButton tel="tel:7133137000" label="TSU Police" sub="713-313-7000" />
-                  <CrisisButton tel="tel:911" label="Emergency Services" sub="Call 911" />
+                  <CrisisButton tel="tel:911" label="Call 911" sub="Emergency Services" />
                 </div>
               </div>
               <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl pointer-events-none" />

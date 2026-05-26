@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   TrendingUp, TrendingDown, Users, BookOpen, MessageSquare, 
@@ -695,7 +695,7 @@ function ResearchUsageTracker() {
   useEffect(() => {
     const loadLogs = () => {
       try {
-        const raw = localStorage.getItem('roar_activity_logs');
+        const raw = localStorage.getItem('roar_usage_log');
         if (raw) {
           setLogs(JSON.parse(raw));
         } else {
@@ -711,7 +711,7 @@ function ResearchUsageTracker() {
 
   const handleClearLogs = () => {
     if (confirm("Are you sure you want to clear all research study logs?")) {
-      localStorage.removeItem('roar_activity_logs');
+      localStorage.removeItem('roar_usage_log');
       setLogs([]);
     }
   };

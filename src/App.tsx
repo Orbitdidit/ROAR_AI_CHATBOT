@@ -8,6 +8,23 @@ import Onboarding from './components/Onboarding';
 import { Screen, Source, UserProfile, SourceType, UserRole } from './types';
 
 export default function App() {
+  // One-time version migration check
+  const currentVer = localStorage.getItem('roar_app_version');
+  if (currentVer !== '2.0') {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('roar_')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+    
+    localStorage.setItem('roar_app_version', '2.0');
+    window.location.reload();
+    return null; // Stop rendering
+  }
+
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [consent, setConsent] = useState<{ agreed: boolean; timestamp: string } | null>(null);
   const [activeScreen, setActiveScreen] = useState<Screen>('chat');
@@ -20,27 +37,45 @@ export default function App() {
 
   // Load persistent data
   useEffect(() => {
+    const savedUniqueId = localStorage.getItem('roar_unique_id');
+    const savedConsent = localStorage.getItem('roar_consent');
     const savedProfile = localStorage.getItem('roar_student_profile');
     const savedSources = localStorage.getItem('roar_active_sources');
-    const savedConsent = localStorage.getItem('roar_consent');
     
-    if (savedConsent) {
-      setConsent(JSON.parse(savedConsent));
-    }
+    const hasAllThree = savedUniqueId && savedConsent && savedProfile;
     
-    if (savedProfile) {
-      const profile = JSON.parse(savedProfile);
-      // Ensure role exists for backward compatibility during development
-      if (!profile.role) {
-        profile.role = 'student';
+    if (hasAllThree) {
+      try {
+        const parsedConsent = JSON.parse(savedConsent);
+        const parsedProfile = JSON.parse(savedProfile);
+        
+        if (parsedConsent && parsedConsent.agreed && parsedProfile) {
+          if (!parsedProfile.role) {
+            parsedProfile.role = 'student';
+          }
+          setConsent(parsedConsent);
+          setUserProfile(parsedProfile);
+          const isRoleAdmin = ['faculty', 'admin', 'staff'].includes(parsedProfile.role);
+          setActiveScreen(isRoleAdmin ? 'admin' : 'chat');
+        } else {
+          setConsent(null);
+          setUserProfile(null);
+        }
+      } catch (e) {
+        setConsent(null);
+        setUserProfile(null);
       }
-      setUserProfile(profile);
-      const isRoleAdmin = ['faculty', 'admin', 'staff'].includes(profile.role);
-      setActiveScreen(isRoleAdmin ? 'admin' : 'chat');
+    } else {
+      setConsent(null);
+      setUserProfile(null);
     }
     
     if (savedSources) {
-      setActiveSources(JSON.parse(savedSources));
+      try {
+        setActiveSources(JSON.parse(savedSources));
+      } catch (e) {
+        setActiveSources([]);
+      }
     }
     
     setIsInitialized(true);
