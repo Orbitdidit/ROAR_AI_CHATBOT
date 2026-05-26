@@ -254,7 +254,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     
     if (agreed) {
       const cleanId = (localStorage.getItem('roar_unique_id') || '').trim().toUpperCase();
-      const isAdminId = cleanId.startsWith('ROAR-A-');
+      const role = localStorage.getItem('roar_role');
+      const isAdminId = role === 'admin' || cleanId.startsWith('ROAR-A-') || cleanId.startsWith('ROAR-ADM-');
       if (isAdminId) {
         const profile: UserProfile = {
           id: cleanId,
@@ -360,7 +361,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             </p>
           </div>
 
-          <div className="bg-white rounded-[3rem] p-8 md:p-12 shadow-2xl shadow-primary/5 border border-surface-highest/50 relative overflow-hidden">
+          <form 
+            onSubmit={e => {
+              e.preventDefault();
+              handleValidateId();
+            }}
+            className="bg-white rounded-[3rem] p-8 md:p-12 shadow-2xl shadow-primary/5 border border-surface-highest/50 relative overflow-hidden"
+          >
             <div className="space-y-6">
               {lockoutTimeLeft > 0 && (
                 <div role="alert" className="p-5 rounded-2xl bg-primary/10 border border-primary/20 text-primary text-center animate-in fade-in duration-300">
@@ -395,14 +402,14 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               </div>
 
               <button 
-                onClick={handleValidateId}
+                type="submit"
                 disabled={lockoutTimeLeft > 0 || uniqueId.trim().length < 10}
                 className="w-full p-5 rounded-2xl bg-primary text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all academic-gradient-maroon cursor-pointer disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
               >
                 Continue
               </button>
             </div>
-          </div>
+          </form>
         </div>
       </div>
     );

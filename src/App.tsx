@@ -35,7 +35,8 @@ export default function App() {
         profile.role = 'student';
       }
       setUserProfile(profile);
-      setActiveScreen('chat');
+      const isRoleAdmin = ['faculty', 'admin', 'staff'].includes(profile.role);
+      setActiveScreen(isRoleAdmin ? 'admin' : 'chat');
     }
     
     if (savedSources) {
@@ -67,7 +68,8 @@ export default function App() {
     import('./lib/analytics').then(({ trackEvent }) => {
       trackEvent('onboarding_complete', profile);
     });
-    setActiveScreen('chat');
+    const isRoleAdmin = ['faculty', 'admin', 'staff'].includes(profile.role);
+    setActiveScreen(isRoleAdmin ? 'admin' : 'chat');
   };
 
   const addSource = (source: Source) => {

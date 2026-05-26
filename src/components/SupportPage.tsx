@@ -183,55 +183,43 @@ export default function SupportPage({ userProfile }: { userProfile: UserProfile 
             </p>
           </div>
 
-          <div className="space-y-6 mt-8">
+          <div className="space-y-4 mt-8">
             <h3 className="text-xl font-black text-charcoal tracking-tight font-display">How are you feeling?</h3>
             
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-black uppercase tracking-widest text-teal">POSITIVE</span>
-                <div className="h-px flex-1 bg-teal/10" />
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {tier1Moods.map((mood) => (
-                  <button
-                    key={mood.label}
-                    onClick={() => handleMoodClick(mood.label)}
-                    className={cn(
-                      "px-5 py-3 rounded-xl text-xs font-black border transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer",
-                      selectedMood === mood.label
-                        ? "bg-teal text-white border-teal shadow-lg shadow-teal/20"
-                        : "bg-white border-surface-highest text-charcoal hover:border-teal hover:bg-teal/5"
-                    )}
-                  >
-                    {mood.icon}
-                    <span>{mood.label}</span>
-                  </button>
-                ))}
-              </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {tier1Moods.map((mood) => (
+                <button
+                  key={mood.label}
+                  onClick={() => handleMoodClick(mood.label)}
+                  className={cn(
+                    "px-5 py-3 rounded-xl text-xs font-black border transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer",
+                    selectedMood === mood.label
+                      ? "bg-teal text-white border-teal shadow-lg shadow-teal/20"
+                      : "bg-white border-surface-highest text-charcoal hover:border-teal hover:bg-teal/5"
+                  )}
+                >
+                  {mood.icon}
+                  <span>{mood.label}</span>
+                </button>
+              ))}
             </div>
 
-            <div className="space-y-3 pt-2">
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-black uppercase tracking-widest text-primary">NEEDS SUPPORT</span>
-                <div className="h-px flex-1 bg-primary/10" />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {tier2Moods.map((mood) => (
-                  <button
-                    key={mood.label}
-                    onClick={() => handleMoodClick(mood.label)}
-                    className={cn(
-                      "px-5 py-3 rounded-xl text-xs font-black border transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer",
-                      selectedMood === mood.label
-                        ? "academic-gradient-maroon text-white border-primary shadow-lg shadow-primary/20"
-                        : "bg-white border-primary/20 text-primary hover:border-primary hover:bg-primary/5"
-                    )}
-                  >
-                    {mood.icon}
-                    <span>{mood.label}</span>
-                  </button>
-                ))}
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+              {tier2Moods.map((mood) => (
+                <button
+                  key={mood.label}
+                  onClick={() => handleMoodClick(mood.label)}
+                  className={cn(
+                    "px-5 py-3 rounded-xl text-xs font-black border transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer",
+                    selectedMood === mood.label
+                      ? "academic-gradient-maroon text-white border-primary shadow-lg shadow-primary/20"
+                      : "bg-white border-primary/20 text-primary hover:border-primary hover:bg-primary/5"
+                  )}
+                >
+                  {mood.icon}
+                  <span>{mood.label}</span>
+                </button>
+              ))}
             </div>
           </div>
 
